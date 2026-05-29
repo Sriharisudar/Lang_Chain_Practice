@@ -13,12 +13,12 @@ import warnings
 
 warnings.filterwarnings('ignore')
 llm = Ollama(model="qwen3:4b")
-# model_name = "sentence-transformers/all-mpnet-base-v2"
+# Recommended HuggingFace embedding model for LangChain
 model_kwargs = {'device': 'cpu'}
 encode_kwargs = {'normalize_embeddings': False}
 
 Colbert_embed = HuggingFaceEmbeddings(
-    model_name="colbert-ir/colbertv2.0",
+    model_name="sentence-transformers/all-mpnet-base-v2",
     model_kwargs=model_kwargs,
     encode_kwargs=encode_kwargs
 )
@@ -65,11 +65,8 @@ for i in range(0, len(df), rows_per_doc):
     )
     docs.append(document)
 
-# Colbert_embed = HuggingFaceEmbeddings(r'colbert-ir/colbertv2.0')
-
 cb_kb = FAISS.from_documents(docs, Colbert_embed)
 colbert_retriever = cb_kb.as_retriever()
-# print(colbert_retriever.invoke(""))
 
 system_prompt = (
     "you are seasoned credit card advisor. by analysing the spening and financial data"
