@@ -1,0 +1,7 @@
+#in cmd
+for /f %i in (requirements.txt) do pip install %i
+
+#in powershell
+Get-Content requirements.txt | ForEach-Object {
+    pip install $_
+}

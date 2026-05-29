@@ -1,18 +1,22 @@
+import pandas as pd
+import warnings
+warnings.filterwarnings("ignore")
+# 1. Modern Embedding & Vector Store Imports (Fixed Deprecation Warning)
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+# 2. Modern Core Prompts & Tools
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import Tool
+# 3. Modern Local LLM Integration
 from langchain_ollama import OllamaLLM
-from langchain.tools import Tool
-from langchain.agents import create_react_agent, AgentExecutor
+# 4. Stable Agent Engine (Pulled from compatibility layer)
+from langchain_classic.agents import create_react_agent, AgentExecutor
+# 5. Retrieval Chain Utilities
 from langchain import hub
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
-import pandas as pd
-import warnings
-
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 # LLM
 llm = OllamaLLM(model="qwen3:4b")
