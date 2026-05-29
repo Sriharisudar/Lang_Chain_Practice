@@ -1,7 +1,7 @@
-#in cmd
+#in cmd for iterative download of library installation
 for /f %i in (requirements.txt) do pip install %i
 
-#in powershell
+#in powershell for iterative download of library installation
 Get-Content requirements.txt | ForEach-Object {
     pip install $_
 }
