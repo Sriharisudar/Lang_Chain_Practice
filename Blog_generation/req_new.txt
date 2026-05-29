@@ -1,0 +1,11 @@
+langchain
+langchain-community
+langchain-core
+langchain-huggingface
+faiss-cpu
+sentence-transformers
+transformers
+torch
+pandas
+huggingface-hub
+ollama
