@@ -1,25 +1,26 @@
 import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
-# 1. Modern Embedding & Vector Store Imports (Fixed Deprecation Warning)
+
+# 1. Modern Embedding & Vector Store Imports
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+
 # 2. Modern Core Prompts & Tools
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.tools import Tool
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
 # 3. Modern Local LLM Integration
 from langchain_ollama import OllamaLLM
-# 4. Stable Agent Engine (Pulled from compatibility layer)
+
+# 4. Stable Agent Engine
 from langchain_classic.agents import create_react_agent, AgentExecutor
-# 5. Retrieval Chain Utilities
-from langchain import hub
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-# warnings.filterwarnings("ignore")
 
 # LLM
-llm = OllamaLLM(model="qwen3:4b")
+llm = OllamaLLM(model="gemma3:1b")
 
 # Embeddings
 model_kwargs = {"device": "cpu"}
@@ -50,7 +51,7 @@ for i in range(0, len(df), rows_per_doc):
         Document(
             page_content=batch.to_json(orient="records"),
             metadata={
-                "source": f"customer_rows_{i+1}_to_{min(i+rows_per_doc,len(df))}"
+                "source": f"customer_rows_{i+1}_to_{min(i+rows_per_doc, len(df))}"
             },
         )
     )
@@ -65,7 +66,7 @@ for i in range(0, len(df), rows_per_doc):
         Document(
             page_content=batch.to_json(orient="records"),
             metadata={
-                "source": f"credit_rows_{i+1}_to_{min(i+rows_per_doc,len(df))}"
+                "source": f"credit_rows_{i+1}_to_{min(i+rows_per_doc, len(df))}"
             },
         )
     )
@@ -80,7 +81,7 @@ for i in range(0, len(df), rows_per_doc):
         Document(
             page_content=batch.to_json(orient="records"),
             metadata={
-                "source": f"spending_rows_{i+1}_to_{min(i+rows_per_doc,len(df))}"
+                "source": f"spending_rows_{i+1}_to_{min(i+rows_per_doc, len(df))}"
             },
         )
     )
@@ -111,14 +112,23 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# RAG Chain
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+# RAG Chain (Modern LCEL approach - no langchain.chains needed)
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+rag_chain = (
+    {
+        "context": retriever | format_docs,
+        "input": RunnablePassthrough()
+    }
+    | prompt
+    | llm
+    | StrOutputParser()
+)
 
 # Tool
 def credit_advice_tool_func(input_text: str) -> str:
-    result = rag_chain.invoke({"input": input_text})
-    return result["answer"]
+    return rag_chain.invoke(input_text)
 
 credit_advisor_tool = Tool(
     name="CreditAdvisorTool",
@@ -126,9 +136,28 @@ credit_advisor_tool = Tool(
     description="Analyzes customer profile and recommends top credit cards.",
 )
 
-# Agent
-react_prompt = hub.pull("hwchase17/react")
+# ReAct Prompt (manual — no hub dependency)
+react_prompt = PromptTemplate.from_template("""Answer the following questions as best you can. You have access to the following tools:
 
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+Thought:{agent_scratchpad}""")
+
+# Agent
 agent = create_react_agent(
     llm=llm,
     tools=[credit_advisor_tool],
