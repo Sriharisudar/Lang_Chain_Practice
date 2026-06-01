@@ -1,7 +1,14 @@
 import pandas as pd
 import warnings
-warnings.filterwarnings("ignore")
 import sys
+warnings.filterwarnings("ignore")
+
+from tqdm import tqdm
+
+model_name = "qwen3_4b"
+# Redirect ALL console output to txt file
+log_file = open(f"output_{model_name}.txt", "w", encoding="utf-8")
+sys.stdout = log_file
 
 # 1. Modern Embedding & Vector Store Imports
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -20,14 +27,8 @@ from langchain_ollama import OllamaLLM
 # 4. Stable Agent Engine
 from langchain_classic.agents import create_react_agent, AgentExecutor
 
-import sys
-
-model_name = "qwen3:4b"
-# Redirect ALL console output to txt file
-sys.stdout = open(f"output_{model_name}.txt", "w", encoding="utf-8")
-
 # LLM
-llm = OllamaLLM(model=model_name)
+llm = OllamaLLM(model="gemma3:1b")
 
 # Embeddings
 model_kwargs = {"device": "cpu"}
@@ -41,18 +42,19 @@ Colbert_embed = HuggingFaceEmbeddings(
 
 # Load CSVs
 csv_files = [
-    "Blog_generation/credit_card_approval_data_inr.csv",
-    "Blog_generation/master_credit_card.csv",
-    "Blog_generation/spending_history_data.csv",
+    "blog_generation/credit_card_approval_data_inr.csv",
+    "blog_generation/master_credit_card.csv",
+    "blog_generation/spending_history_data.csv",
 ]
 
 docs = []
 
-# Customer Data
+# ── Customer Data ──────────────────────────────────────────
 rows_per_doc = 50
 df = pd.read_csv(csv_files[0])
+batches = range(0, len(df), rows_per_doc)
 
-for i in range(0, len(df), rows_per_doc):
+for i in tqdm(batches, desc="📄 Loading Customer Data", file=sys.__stdout__):
     batch = df.iloc[i:i + rows_per_doc]
     docs.append(
         Document(
@@ -63,11 +65,12 @@ for i in range(0, len(df), rows_per_doc):
         )
     )
 
-# Credit Card Master Data
+# ── Credit Card Master Data ────────────────────────────────
 rows_per_doc = 5
 df = pd.read_csv(csv_files[1])
+batches = range(0, len(df), rows_per_doc)
 
-for i in range(0, len(df), rows_per_doc):
+for i in tqdm(batches, desc="💳 Loading Credit Card Data", file=sys.__stdout__):
     batch = df.iloc[i:i + rows_per_doc]
     docs.append(
         Document(
@@ -78,11 +81,12 @@ for i in range(0, len(df), rows_per_doc):
         )
     )
 
-# Spending Data
+# ── Spending Data ──────────────────────────────────────────
 rows_per_doc = 250
 df = pd.read_csv(csv_files[2])
+batches = range(0, len(df), rows_per_doc)
 
-for i in range(0, len(df), rows_per_doc):
+for i in tqdm(batches, desc="💰 Loading Spending Data", file=sys.__stdout__):
     batch = df.iloc[i:i + rows_per_doc]
     docs.append(
         Document(
@@ -93,9 +97,11 @@ for i in range(0, len(df), rows_per_doc):
         )
     )
 
-# Vector Store
+# ── Vector Store ───────────────────────────────────────────
+tqdm.write("🔧 Building Vector Store...", file=sys.__stdout__)
 cb_kb = FAISS.from_documents(docs, Colbert_embed)
 retriever = cb_kb.as_retriever(search_kwargs={"k": 5})
+tqdm.write("✅ Vector Store Ready!", file=sys.__stdout__)
 
 # RAG Prompt
 system_prompt = """
@@ -119,7 +125,7 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# RAG Chain (Modern LCEL approach - no langchain.chains needed)
+# ── RAG Chain ──────────────────────────────────────────────
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
@@ -133,7 +139,7 @@ rag_chain = (
     | StrOutputParser()
 )
 
-# Tool
+# ── Tool ───────────────────────────────────────────────────
 def credit_advice_tool_func(input_text: str) -> str:
     return rag_chain.invoke(input_text)
 
@@ -143,7 +149,7 @@ credit_advisor_tool = Tool(
     description="Analyzes customer profile and recommends top credit cards.",
 )
 
-# ReAct Prompt (manual — no hub dependency)
+# ── ReAct Prompt ───────────────────────────────────────────
 react_prompt = PromptTemplate.from_template("""Answer the following questions as best you can. You have access to the following tools:
 
 {tools}
@@ -164,7 +170,7 @@ Begin!
 Question: {input}
 Thought:{agent_scratchpad}""")
 
-# Agent
+# ── Agent ──────────────────────────────────────────────────
 agent = create_react_agent(
     llm=llm,
     tools=[credit_advisor_tool],
@@ -178,7 +184,7 @@ agent_executor = AgentExecutor(
     handle_parsing_errors=True,
 )
 
-# Query
+# ── Query ──────────────────────────────────────────────────
 query = """
 spending habits:
 grocery-5000,
@@ -209,14 +215,14 @@ Include:
 Focus on grocery, dining, travel, and entertainment.
 """
 
-response = agent_executor.invoke(
-    {
-        "input": agent_input
-    }
-)
+# ── Run Agent ──────────────────────────────────────────────
+tqdm.write("🤖 Running Agent...", file=sys.__stdout__)
+
+response = agent_executor.invoke({"input": agent_input})
+
 print(response["output"])
 
-# Close and restore stdout
-sys.stdout.close()
+# ── Close and Restore stdout ───────────────────────────────
+log_file.close()
 sys.stdout = sys.__stdout__
-print("Output saved to output.txt")
+tqdm.write(f"✅ Output saved to output_{model_name}.txt", file=sys.__stdout__)

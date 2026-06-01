@@ -1,5 +1,4 @@
-Applicant ID,Credit 
-,Income (INR),Employment Status,Debt-to-Income Ratio,Credit Utilization (%),Existing Debts (INR),Payment History (Late Payments),Residential Stability (Years),Age,Bankruptcy (Yes/No),Total Credit Limit (INR)
+Applicant ID,Credit Income (INR),Employment Status,Debt-to-Income Ratio,Credit Utilization (%),Existing Debts (INR),Payment History (Late Payments),Residential Stability (Years),Age,Bankruptcy (Yes/No),Total Credit Limit (INR)
 AP0001,527,1560285,Self-employed,0.65,89,1916923,2,11,45,Yes,270271
 AP0002,544,2995855,Self-employed,0.46,57,506233,8,17,52,Yes,379953
 AP0003,517,299591,Unemployed,0.82,71,1423900,2,10,63,No,56550
