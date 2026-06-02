@@ -28,7 +28,7 @@ from langchain_ollama import OllamaLLM
 from langchain_classic.agents import create_react_agent, AgentExecutor
 
 # LLM
-llm = OllamaLLM(model="gemma3:1b")
+llm = OllamaLLM(model="gemma3:4b")
 
 # Embeddings
 model_kwargs = {"device": "cpu"}
@@ -150,25 +150,47 @@ credit_advisor_tool = Tool(
 )
 
 # ── ReAct Prompt ───────────────────────────────────────────
-react_prompt = PromptTemplate.from_template("""Answer the following questions as best you can. You have access to the following tools:
+react_prompt = PromptTemplate.from_template("""
+You are an expert Credit Card Recommendation Agent.
+
+Your objective:
+1. Analyze customer spending habits.
+2. Analyze financial history.
+3. Determine credit card eligibility.
+4. Use CreditAdvisorTool to retrieve relevant customer, spending, and credit card information.
+5. Recommend ONLY the top 3 most suitable credit cards.
+
+For each recommendation provide:
+- Card Name
+- Card Type
+- Rewards
+- Annual Fee
+- APR
+- Key Benefits
+
+Always prioritize:
+- Grocery spending
+- Dining spending
+- Travel spending
+- Entertainment spending
+
+You have access to the following tools:
 
 {tools}
 
 Use the following format:
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Begin!
+Question: customer profile
+Thought: analyze the profile and determine what information is needed
+Action: one of [{tool_names}]
+Action Input: the customer profile
+Observation: retrieved eligibility and card information
+Thought: compare candidate cards and select best 3
+Final Answer: provide the final recommendation
 
 Question: {input}
-Thought:{agent_scratchpad}""")
+Thought:{agent_scratchpad}
+""")
 
 # ── Agent ──────────────────────────────────────────────────
 agent = create_react_agent(
